@@ -239,6 +239,8 @@ class WebSearchConfig(Base):
     """Web search tool configuration."""
 
     api_key: str = ""  # Brave Search API key
+    anspire_api_key: str = ""  # Anspire Search API key
+    provider: str = "brave"  # Search provider: "brave" or "anspire"
     max_results: int = 5
 
 

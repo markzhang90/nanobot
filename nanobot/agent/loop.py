@@ -54,6 +54,8 @@ class AgentLoop:
         max_tokens: int = 4096,
         memory_window: int = 100,
         brave_api_key: str | None = None,
+        anspire_api_key: str | None = None,
+        search_provider: str| None = None,
         exec_config: ExecToolConfig | None = None,
         cron_service: CronService | None = None,
         restrict_to_workspace: bool = False,
@@ -72,6 +74,8 @@ class AgentLoop:
         self.max_tokens = max_tokens
         self.memory_window = memory_window
         self.brave_api_key = brave_api_key
+        self.anspire_api_key = anspire_api_key
+        self.search_provider = search_provider
         self.exec_config = exec_config or ExecToolConfig()
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
@@ -87,6 +91,8 @@ class AgentLoop:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             brave_api_key=brave_api_key,
+            anspire_api_key=anspire_api_key,
+            search_provider=search_provider,
             exec_config=self.exec_config,
             restrict_to_workspace=restrict_to_workspace,
         )
@@ -111,7 +117,11 @@ class AgentLoop:
             timeout=self.exec_config.timeout,
             restrict_to_workspace=self.restrict_to_workspace,
         ))
-        self.tools.register(WebSearchTool(api_key=self.brave_api_key))
+        self.tools.register(WebSearchTool(
+            api_key=self.brave_api_key,
+            anspire_api_key=self.anspire_api_key,
+            provider=self.search_provider
+        ))
         self.tools.register(WebFetchTool())
         self.tools.register(MessageTool(send_callback=self.bus.publish_outbound))
         self.tools.register(SpawnTool(manager=self.subagents))

@@ -44,10 +44,10 @@ def _validate_url(url: str) -> tuple[bool, str]:
 
 
 class WebSearchTool(Tool):
-    """Search the web using Brave Search API."""
+    """Search web using Anspire API."""
     
     name = "web_search"
-    description = "Search the web. Returns titles, URLs, and snippets."
+    description = "Search web. Returns titles, URLs, and snippets."
     parameters = {
         "type": "object",
         "properties": {
@@ -57,11 +57,21 @@ class WebSearchTool(Tool):
         "required": ["query"]
     }
     
-    def __init__(self, api_key: str | None = None, max_results: int = 5):
+    def __init__(self, api_key: str | None = None, max_results: int = 5, provider: str | None = None, anspire_api_key: str | None = None):
         self.api_key = api_key or os.environ.get("BRAVE_API_KEY", "")
+        self.anspire_api_key = anspire_api_key or os.environ.get("ANSPIRE_API_KEY", "")
+        self.provider = provider or os.environ.get("SEARCH_PROVIDER", "anspire")
         self.max_results = max_results
+        
+        print(f"[DEBUG] WebSearchTool initialized: provider={self.provider}, anspire_api_key={self.anspire_api_key if self.anspire_api_key else 'None'}")
     
     async def execute(self, query: str, count: int | None = None, **kwargs: Any) -> str:
+        if self.provider == "anspire":
+            return await self._search_anspire(query, count)
+        else:
+            return await self._search_brave(query, count)
+    
+    async def _search_brave(self, query: str, count: int | None = None) -> str:
         if not self.api_key:
             return "Error: BRAVE_API_KEY not configured"
         
@@ -86,6 +96,49 @@ class WebSearchTool(Tool):
                 if desc := item.get("description"):
                     lines.append(f"   {desc}")
             return "\n".join(lines)
+        except Exception as e:
+            return f"Error: {e}"
+    
+    async def _search_anspire(self, query: str, count: int | None = None) -> str:
+        
+        if not self.anspire_api_key:
+            return "Error: ANSPIRE_API_KEY not configured"
+        
+        try:
+            n = min(max(count or self.max_results, 1), 10)
+            url = f"https://plugin.anspire.cn/api/ntsearch/search?query={query}&top_k={n}"
+            headers = {
+                "Accept": "*/*",
+                "Authorization": f"Bearer {self.anspire_api_key}"
+            }
+            print(f"[DEBUG] Request URL: {url}")
+            print(f"[DEBUG] Headers: Authorization={'***' if self.anspire_api_key else 'None'}")
+            
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    url,
+                    headers=headers,
+                    timeout=10.0
+                )
+                print(f"[DEBUG] Response status: {r.status_code}")
+                r.raise_for_status()
+            
+            data = r.json()
+            results = data.get("results", [])
+            if not results:
+                return f"No results for: {query}"
+            
+            lines = [f"Results for: {query}\n"]
+            for i, item in enumerate(results[:n], 1):
+                title = item.get("title", "")
+                url = item.get("url", "")
+                snippet = item.get("snippet", item.get("description", ""))
+                lines.append(f"{i}. {title}\n   {url}")
+                if snippet:
+                    lines.append(f"   {snippet}")
+            return "\n".join(lines)
+        except httpx.HTTPStatusError as e:
+            return f"Error: HTTP {e.response.status_code} - {e.response.text[:200]}"
         except Exception as e:
             return f"Error: {e}"
 
