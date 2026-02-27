@@ -11,6 +11,12 @@ from litellm import acompletion
 from nanobot.providers.base import LLMProvider, LLMResponse, ToolCallRequest
 from nanobot.providers.registry import find_by_model, find_gateway
 
+try:
+    from nanobot.utils import trace_llm_call
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+
 
 # Standard OpenAI chat-completion message keys plus reasoning_content for
 # thinking-enabled models (Kimi k2.5, DeepSeek-R1, etc.).
@@ -164,7 +170,7 @@ class LiteLLMProvider(LLMProvider):
             sanitized.append(clean)
         return sanitized
 
-    async def chat(
+    async def _chat_impl(
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
@@ -230,6 +236,20 @@ class LiteLLMProvider(LLMProvider):
                 content=f"Error calling LLM: {str(e)}",
                 finish_reason="error",
             )
+
+    async def chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        model: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+    ) -> LLMResponse:
+        """Send a chat completion request via LiteLLM with optional tracing."""
+        if _TRACING_AVAILABLE:
+            decorated = trace_llm_call(self._chat_impl)
+            return await decorated(messages, tools, model, max_tokens, temperature)
+        return await self._chat_impl(messages, tools, model, max_tokens, temperature)
     
     def _parse_response(self, response: Any) -> LLMResponse:
         """Parse LiteLLM response into our standard format."""

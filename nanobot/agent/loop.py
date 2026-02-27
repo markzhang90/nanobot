@@ -24,7 +24,21 @@ from nanobot.agent.tools.web import WebFetchTool, WebSearchTool
 from nanobot.bus.events import InboundMessage, OutboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.providers.base import LLMProvider
-from nanobot.session.manager import Session, SessionManager
+from nanobot.session.manager import Session, SessionManager 
+from nanobot.agent.tools.tasks import (
+        CreateTaskTool,
+        UpdateTaskStatusTool,
+        ListTasksTool,
+        GetTaskTool,
+        DeleteTaskTool,
+        PlanTasksTool,
+    )
+    
+try:
+    from nanobot.utils import trace_agent_message
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
 
 if TYPE_CHECKING:
     from nanobot.config.schema import ChannelsConfig, ExecToolConfig
@@ -130,6 +144,13 @@ class AgentLoop:
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
+
+        self.tools.register(CreateTaskTool(workspace=self.workspace))
+        self.tools.register(UpdateTaskStatusTool(workspace=self.workspace))
+        self.tools.register(ListTasksTool(workspace=self.workspace))
+        self.tools.register(GetTaskTool(workspace=self.workspace))
+        self.tools.register(DeleteTaskTool(workspace=self.workspace))
+        self.tools.register(PlanTasksTool(workspace=self.workspace))
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
@@ -337,7 +358,7 @@ class AgentLoop:
         if not lock.locked():
             self._consolidation_locks.pop(session_key, None)
 
-    async def _process_message(
+    async def _process_message_impl(
         self,
         msg: InboundMessage,
         session_key: str | None = None,
@@ -465,6 +486,18 @@ class AgentLoop:
             channel=msg.channel, chat_id=msg.chat_id, content=final_content,
             metadata=msg.metadata or {},
         )
+
+    async def _process_message(
+        self,
+        msg: InboundMessage,
+        session_key: str | None = None,
+        on_progress: Callable[[str], Awaitable[None]] | None = None,
+    ) -> OutboundMessage | None:
+        """Process a single inbound message with optional tracing."""
+        if _TRACING_AVAILABLE:
+            decorated = trace_agent_message(self._process_message_impl)
+            return await decorated(msg, session_key, on_progress)
+        return await self._process_message_impl(msg, session_key, on_progress)
 
     _TOOL_RESULT_MAX_CHARS = 500
 

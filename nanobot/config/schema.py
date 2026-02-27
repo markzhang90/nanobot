@@ -306,6 +306,20 @@ class ToolsConfig(Base):
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
 
+class PhoenixConfig(Base):
+    """Phoenix tracing configuration."""
+
+    enabled: bool = False
+    collector_endpoint: str = "http://localhost:6006"
+    project_name: str = "nanobot"
+
+
+class TracingConfig(Base):
+    """Tracing configuration."""
+
+    phoenix: PhoenixConfig = Field(default_factory=PhoenixConfig)
+
+
 class Config(BaseSettings):
     """Root configuration for nanobot."""
 
@@ -314,6 +328,7 @@ class Config(BaseSettings):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
+    tracing: TracingConfig = Field(default_factory=TracingConfig)
 
     @property
     def workspace_path(self) -> Path:

@@ -15,6 +15,14 @@ from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.agent.tools.filesystem import ReadFileTool, WriteFileTool, EditFileTool, ListDirTool
 from nanobot.agent.tools.shell import ExecTool
 from nanobot.agent.tools.web import WebSearchTool, WebFetchTool
+from nanobot.agent.tools.tasks import (
+    CreateTaskTool,
+    UpdateTaskStatusTool,
+    ListTasksTool,
+    GetTaskTool,
+    DeleteTaskTool,
+    PlanTasksTool,
+)
 
 
 class SubagentManager:
@@ -111,6 +119,12 @@ class SubagentManager:
                 provider=self.search_provider
             ))
             tools.register(WebFetchTool())
+            tools.register(CreateTaskTool(workspace=self.workspace))
+            tools.register(UpdateTaskStatusTool(workspace=self.workspace))
+            tools.register(ListTasksTool(workspace=self.workspace))
+            tools.register(GetTaskTool(workspace=self.workspace))
+            tools.register(DeleteTaskTool(workspace=self.workspace))
+            tools.register(PlanTasksTool(workspace=self.workspace))
             
             # Build messages with subagent-specific prompt
             system_prompt = self._build_subagent_prompt(task)

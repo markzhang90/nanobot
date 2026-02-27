@@ -294,6 +294,15 @@ def gateway(
     console.print(f"{__logo__} Starting nanobot gateway on port {port}...")
     
     config = load_config()
+    
+    # Initialize Phoenix tracing if enabled
+    if config.tracing.phoenix.enabled:
+        from nanobot.utils import init_phoenix_tracing
+        init_phoenix_tracing(
+            collector_endpoint=config.tracing.phoenix.collector_endpoint,
+            project_name=config.tracing.phoenix.project_name,
+        )
+    
     bus = MessageBus()
     provider = _make_provider(config)
     session_manager = SessionManager(config.workspace_path)
@@ -449,6 +458,14 @@ def agent(
     from loguru import logger
     
     config = load_config()
+    
+    # Initialize Phoenix tracing if enabled
+    if config.tracing.phoenix.enabled:
+        from nanobot.utils import init_phoenix_tracing
+        init_phoenix_tracing(
+            collector_endpoint=config.tracing.phoenix.collector_endpoint,
+            project_name=config.tracing.phoenix.project_name,
+        )
     
     bus = MessageBus()
     provider = _make_provider(config)
